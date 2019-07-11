@@ -44,17 +44,25 @@ app.use('*', (request, response) => {
 // function lookUp(locationName, exists, doesNotExist){
 //if exists call exist fn
 function lookUpDB(url, tableName, locationId, placeholders, Weather, response) {
-  // if () {
-
-  // } else {
-
-  // }
+  client.query(`SELECT * FROM locations INNER JOIN ${tableName} ON locations.id=$1`, [locationId])
+    .then(result => {
+      console.log('************************* result')
+      if (result.rowCount === 0) {
+        doesNotExist(url, tableName, locationId, placeholders, Weather, response);
+      } else {
+        exists(result.rows, response);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      response.status(500).send('Something broke!');
+    });
 }
 
 
 // - If the records exist, send them as the response to the client.
 function exists(sqlResult, response) {
-  response.send(sqlResult.rows)
+  response.send(sqlResult);
 }
 
 // - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
@@ -181,7 +189,10 @@ function Weather(weatherData) {
 function returnWeather(request, response) {
   const lat = request.query.data.latitude;
   const lng = request.query.data.longitude;
-  const locationId = request.query.data.id;
+  console.log('***************** ', request.query.data)
+  const locationId = parseInt(request.query.data.id);
+  console.log('********************************', locationId)
+
   const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${lat},${lng}`;
   const placeholders = '$1, $2, $3';
 
@@ -191,7 +202,7 @@ function returnWeather(request, response) {
   // lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
 
 
-  doesNotExist(url, 'weathers', locationId, placeholders, Weather, response);
+  lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
 
   // client.query(`SELECT * FROM locations INNER JOIN weathers ON locations.id=weathers.location_id`, [])
   //   .then(sqlResult => {

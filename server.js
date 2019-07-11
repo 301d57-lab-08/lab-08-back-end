@@ -46,7 +46,6 @@ app.use('*', (request, response) => {
 function lookUpDB(url, tableName, locationId, placeholders, Weather, response) {
   client.query(`SELECT * FROM locations INNER JOIN ${tableName} ON locations.id=$1`, [locationId])
     .then(result => {
-      console.log('************************* result')
       if (result.rowCount === 0) {
         doesNotExist(url, tableName, locationId, placeholders, Weather, response);
       } else {
@@ -152,11 +151,11 @@ function returnLocation(request, response) {
             const search_query = locationName;
 
             client.query(`INSERT INTO locations (
-            search_query,
-            formatted_query,
-            latitude,
-            longitude
-          ) VALUES ($1, $2, $3, $4)`, [search_query, formatted_query, lat, lng])
+              search_query,
+              formatted_query,
+              latitude,
+              longitude
+            ) VALUES ($1, $2, $3, $4)`, [search_query, formatted_query, lat, lng]);
 
             response.status(200).send(new Location(search_query, formatted_query, lat, lng));
           })
@@ -190,19 +189,36 @@ function returnWeather(request, response) {
   const lat = request.query.data.latitude;
   const lng = request.query.data.longitude;
   console.log('***************** ', request.query.data)
-  const locationId = parseInt(request.query.data.id);
-  console.log('********************************', locationId)
 
   const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${lat},${lng}`;
   const placeholders = '$1, $2, $3';
 
+  const query = {
+    text: 'SELECT id FROM locations WHERE search_query=$1',
+    values: [request.query.data.search_query],
+  }
+  
+  // callback
+  let locationId;
+  if (!request.query.data.id) {
+    client.query(query, (err, res) => {
+      if (err) {
+        console.log(err.stack)
+      } else {
+        console.log('***************************', res.rows[0].id);
+        locationId = res.rows[0].id;
+        lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
+      }
+    })
+  } else {
+    locationId = request.query.data.id;
+    lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
+  }
+  
+
   // - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
 
-
-  // lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
-
-
-  lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
+  
 
   // client.query(`SELECT * FROM locations INNER JOIN weathers ON locations.id=weathers.location_id`, [])
   //   .then(sqlResult => {

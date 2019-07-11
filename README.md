@@ -29,15 +29,16 @@ Provide the user with weather data for the location they enter.
 ## Credits & Collaborations
 Chris Coulon, Matt Stuhring, Padma Ganapathi, Trevor Dobson & Marisha Hoza
 Brandon Hurrington & Joachen Busche
+Nhu Trinh & Nicholas Paro & Peter Lee
 
 ## Features
 
-Number and name of feature: #1 Data Formatting
+Number and name of feature: #1 Database
 
-Estimate of time needed to complete: 
+Estimate of time needed to complete: 20 min
 
-Start time: 
+Start time: 9:10
 
-Finish time: 
+Finish time: 9:26
 
-Actual time needed to complete: 
+Actual time needed to complete: 16 min

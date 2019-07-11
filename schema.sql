@@ -1,5 +1,5 @@
-DROP TABLE IF EXISTS weathers;
 DROP TABLE IF EXISTS locations;
+DROP TABLE IF EXISTS weathers;
 DROP TABLE IF EXISTS events;
 
 CREATE TABLE locations (

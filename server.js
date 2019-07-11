@@ -42,14 +42,18 @@ app.use('*', (request, response) => {
 
 // DB lookup
 // function lookUp(locationName, exists, doesNotExist){
-  //if exists call exist fn
+//if exists call exist fn
+function lookUpDB(url, tableName, locationId, placeholders, Weather, response) {
+  // if () {
 
-  //
-// }
+  // } else {
+
+  // }
+}
 
 
 // - If the records exist, send them as the response to the client.
-function exists(sqlResult, response){
+function exists(sqlResult, response) {
   response.send(sqlResult.rows)
 }
 
@@ -57,6 +61,57 @@ function exists(sqlResult, response){
 // function doesNotExist(table){
 //   client.query(`SELECT * FROM locations INNER JOIN ${table} ON locations.id=$1`, [table.location_id])
 // }
+function doesNotExist(url, tableName, locationId, placeholders, ObjConstrutor, response) {
+  // request
+  superagent
+    .get(url)
+    .then(result => {
+
+      const objectArr = result.body.daily.data.map(obj => {
+        // save
+        let newObject = new ObjConstrutor(obj);
+        return newObject;
+      })
+
+      objectArr.forEach(obj => {
+        const keys = Object.keys(obj).join(', ');
+        const values = Object.values(obj);
+        values.push(parseInt(locationId));
+
+        console.log('KEYS: ', keys);
+        console.log('VALUES: ', values);
+        console.log('id: ', locationId);
+
+        const query = {
+          text: `INSERT INTO ${tableName} (${keys}, location_id) VALUES (${placeholders})`,
+          values: values
+        };
+
+        // promise
+        client.query(query)
+          .then(res => {
+            console.log('Rows: ', res.rows);
+            console.log('Row Count: ', res.rowCount);
+          })
+          .catch(e => {
+            console.error(e.stack)
+          });
+      });
+
+      response.send(objectArr);
+    })
+    .catch(err => {
+      console.error(err);
+      response.status(500).send('Sorry, something went wrong.');
+    })
+}
+
+
+
+
+
+
+
 
 // Location Constructor
 function Location(search_query, formatted_query, latitude, longitude) {
@@ -78,35 +133,41 @@ function returnLocation(request, response) {
     .then(sqlResult => {
       console.log(sqlResult)
       // If not in the db
-      if(sqlResult.rowCount === 0){
+      if (sqlResult.rowCount === 0) {
         console.log('getting new data from google');
         superagent
-        .get(url)
-        .then(result => {
-          const lat = result.body.results[0].geometry.location.lat;
-          const lng = result.body.results[0].geometry.location.lng;
-          const formatted_query = result.body.results[0].formatted_address;
-          const search_query = locationName;
-        
-          client.query(`INSERT INTO locations (
+          .get(url)
+          .then(result => {
+            const lat = result.body.results[0].geometry.location.lat;
+            const lng = result.body.results[0].geometry.location.lng;
+            const formatted_query = result.body.results[0].formatted_address;
+            const search_query = locationName;
+
+            client.query(`INSERT INTO locations (
             search_query,
             formatted_query,
             latitude,
             longitude
           ) VALUES ($1, $2, $3, $4)`, [search_query, formatted_query, lat, lng])
 
-          response.status(200).send(new Location(search_query, formatted_query, lat, lng));
-        })
-        .catch(err => {
-          console.error(err);
-          response.status(500).send('Sorry, something went wrong.')
-        });      
+            response.status(200).send(new Location(search_query, formatted_query, lat, lng));
+          })
+          .catch(err => {
+            console.error(err);
+            response.status(500).send('Sorry, something went wrong.')
+          });
       } else {
         console.log('sending from db');
         response.send(sqlResult.rows[0]);
       }
     })
-};
+}
+
+
+
+
+
+
 
 //Weather Constructor
 function Weather(weatherData) {
@@ -117,75 +178,51 @@ function Weather(weatherData) {
 
 // Weather - get Darksky JSON, create object via constructor, return object
 // -------------------------------------------------------------------------
-function returnWeather (request, response) {
+function returnWeather(request, response) {
   const lat = request.query.data.latitude;
   const lng = request.query.data.longitude;
   const locationId = request.query.data.id;
   const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${lat},${lng}`;
+  const placeholders = '$1, $2, $3';
+
+  // - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
 
 
-// - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
-  function doesNotExist(url, tableName){
-    // request
-    superagent
-    .get(url)
-    .then(result => {
+  // lookUpDB(url, 'weathers', locationId, placeholders, Weather, response);
 
-      const objectArr = result.body.daily.data.map(obj => {
-    // save
-        let newObject = new Weather(obj);
-        return newObject;
-      })
-      
-      objectArr.forEach(obj => {
-        const keys = Object.keys(obj).join(', ');
-        const values = Object.values(obj).join(', ');
-        client.query(`INSERT INTO ${tableName} (
-          ${keys},
-          location_id
-        ) VALUES ($1, $2, $3)`, [values, locationId])
-      })
 
-      response.send(objectArr);
-    })
-    .catch(err => {
-      console.error(err);
-      response.status(500).send('Sorry, something went wrong.');
-    })
-  }
+  doesNotExist(url, 'weathers', locationId, placeholders, Weather, response);
 
-doesNotExist(url, weathers)
-  
-  client.query(`SELECT * FROM locations INNER JOIN weathers ON locations.id=weathers.location_id`, [])
-    .then(sqlResult => {
-      // if doesn't exist insert into the database after API call
-      if(sqlResult.rowCount === 0){
-        // this is where does not exist fn need to go -------------
-        // superagent
-        // .get(url)
-        // .then(result => {
-        //   const weather = result.body.daily.data.map(obj => {
-        //     let forecast = obj.summary;
-        //     let time = new Date(obj.time * 1000).toDateString();
+  // client.query(`SELECT * FROM locations INNER JOIN weathers ON locations.id=weathers.location_id`, [])
+  //   .then(sqlResult => {
+  //     // if doesn't exist insert into the database after API call
+  //     if (sqlResult.rowCount === 0) {
+  //       // this is where does not exist fn need to go -------------
+  //       // superagent
+  //       // .get(url)
+  //       // .then(result => {
+  //       //   const weather = result.body.daily.data.map(obj => {
+  //       //     let forecast = obj.summary;
+  //       //     let time = new Date(obj.time * 1000).toDateString();
 
-        //     client.query(`INSERT INTO weathers (
-        //       forecast,
-        //       time,
-        //       location_id
-        //     ) VALUES ($1, $2, $3)`, [forecast, time, request.query.data.id])
-        //     return new Weather(forecast, time);
-        //   })
-        //   response.status(200).send(weather);
-        // })
-        // .catch(err => {
-        //   console.error(err);
-        //   response.status(500).send('Sorry, something went wrong.');
-        // })
-      }
-      else{
-        exists(sqlResult, response);
-      }
-    })
+  //       //     client.query(`INSERT INTO weathers (
+  //       //       forecast,
+  //       //       time,
+  //       //       location_id
+  //       //     ) VALUES ($1, $2, $3)`, [forecast, time, request.query.data.id])
+  //       //     return new Weather(forecast, time);
+  //       //   })
+  //       //   response.status(200).send(weather);
+  //       // })
+  //       // .catch(err => {
+  //       //   console.error(err);
+  //       //   response.status(500).send('Sorry, something went wrong.');
+  //       // })
+  //     }
+  //     else {
+  //       exists(sqlResult, response);
+  //     }
+  //   })
 }
 
 //Event Constructor
@@ -198,14 +235,13 @@ function Event(link, name, event_date, summary) {
 
 // Constructor - get EventBrite JSON, create object via constructor, return object
 // -------------------------------------------------------------------------
-function returnEvents (request, response) {
+function returnEvents(request, response) {
   const lat = request.query.data.latitude;
   const lng = request.query.data.longitude;
   const url = `https://www.eventbriteapi.com/v3/events/search/?location.latitude=${lat}&location.longitude=${lng}&token=${process.env.EVENTBRITE_API_KEY}`;
   superagent
     .get(url)
     .then(result => {
-      console.log(result.body.events[0]);
       const events = result.body.events.map(obj => {
         const link = obj.url;
         const name = obj.name.text;

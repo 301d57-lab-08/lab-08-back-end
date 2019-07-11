@@ -48,18 +48,12 @@ app.use('*', (request, response) => {
 // }
 
 
-// Send the object in the db
-// function exists(table){
-//   client.query(`SELECT * FROM locations INNER JOIN ${table} ON locations.id=$1`, [table.location_id])
-//     .then(sqlResult => {
-//       response.send(sqlResult.rows)
-//     })
-//     .catch(err => {
-//       console.error('err at exists: ', err)
-//     })
-// }
+// - If the records exist, send them as the response to the client.
+function exists(sqlResult, response){
+  response.send(sqlResult.rows)
+}
 
-// // Make the object by calling the API 
+// - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
 // function doesNotExist(table){
 //   client.query(`SELECT * FROM locations INNER JOIN ${table} ON locations.id=$1`, [table.location_id])
 // }
@@ -115,8 +109,9 @@ function returnLocation(request, response) {
 };
 
 //Weather Constructor
-function Weather(forecast, time) {
-  this.forecast = forecast;
+function Weather(weatherData) {
+  let time = new Date(weatherData.time * 1000).toDateString();
+  this.forecast = weatherData.summary;
   this.time = time;
 }
 
@@ -129,35 +124,66 @@ function returnWeather (request, response) {
   const url = `https://api.darksky.net/forecast/${process.env.WEATHER_API_KEY}/${lat},${lng}`;
 
 
+// - If the records do not exist, request the data from the appropriate APIs, as you have in labs 6 and 7. Store the results in the appropriate table in your database and send the API results as the response to the client.
+  function doesNotExist(url, tableName){
+    // request
+    superagent
+    .get(url)
+    .then(result => {
 
-  // if weather exists
+      const objectArr = result.body.daily.data.map(obj => {
+    // save
+        let newObject = new Weather(obj);
+        return newObject;
+      })
+      
+      objectArr.forEach(obj => {
+        const keys = Object.keys(obj).join(', ');
+        const values = Object.values(obj).join(', ');
+        client.query(`INSERT INTO ${tableName} (
+          ${keys},
+          location_id
+        ) VALUES ($1, $2, $3)`, [values, locationId])
+      })
+
+      response.send(objectArr);
+    })
+    .catch(err => {
+      console.error(err);
+      response.status(500).send('Sorry, something went wrong.');
+    })
+  }
+
+doesNotExist(url, weathers)
+  
   client.query(`SELECT * FROM locations INNER JOIN weathers ON locations.id=weathers.location_id`, [])
     .then(sqlResult => {
       // if doesn't exist insert into the database after API call
       if(sqlResult.rowCount === 0){
-        superagent
-        .get(url)
-        .then(result => {
-          const weather = result.body.daily.data.map(obj => {
-            let forecast = obj.summary;
-            let time = new Date(obj.time * 1000).toDateString();
+        // this is where does not exist fn need to go -------------
+        // superagent
+        // .get(url)
+        // .then(result => {
+        //   const weather = result.body.daily.data.map(obj => {
+        //     let forecast = obj.summary;
+        //     let time = new Date(obj.time * 1000).toDateString();
 
-            client.query(`INSERT INTO weathers (
-              forecast,
-              time,
-              location_id
-            ) VALUES ($1, $2, $3)`, [forecast, time, request.query.data.id])
-            return new Weather(forecast, time);
-          })
-          response.status(200).send(weather);
-        })
-        .catch(err => {
-          console.error(err);
-          response.status(500).send('Sorry, something went wrong.');
-        })
+        //     client.query(`INSERT INTO weathers (
+        //       forecast,
+        //       time,
+        //       location_id
+        //     ) VALUES ($1, $2, $3)`, [forecast, time, request.query.data.id])
+        //     return new Weather(forecast, time);
+        //   })
+        //   response.status(200).send(weather);
+        // })
+        // .catch(err => {
+        //   console.error(err);
+        //   response.status(500).send('Sorry, something went wrong.');
+        // })
       }
       else{
-        response.send(sqlResult.rows)
+        exists(sqlResult, response);
       }
     })
 }
